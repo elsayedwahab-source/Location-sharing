@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>Location Sharing</title>
+
+<style>
+
+body {
+
+  font-family: Arial, sans-serif;
+
+  background: #f4f5f7;
+
+  display: flex;
+
+  justify-content: center;
+
+  align-items: center;
+
+  min-height: 90vh;
+
+  margin: 0;
+
+}
+
+.card {
+
+  background: white;
+
+  padding: 30px;
+
+  border-radius: 16px;
+
+  text-align: center;
+
+  max-width: 320px;
+
+}
+
+button {
+
+  background: #2563eb;
+
+  color: white;
+
+  border: 0;
+
+  padding: 14px 22px;
+
+  border-radius: 9px;
+
+  font-size: 16px;
+
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="card">
+
+<h2>Share your location</h2>
+
+<p>Choose whether you'd like to share your current location.</p>
+
+<button onclick="shareLocation()">Share location</button>
+
+<p id="result"></p>
+
+</div>
+
+<script>
+
+function shareLocation() {
+
+  navigator.geolocation.getCurrentPosition(
+
+    position => {
+
+      const lat = position.coords.latitude;
+
+      const lon = position.coords.longitude;
+
+      document.getElementById("result").innerHTML =
+
+        "Location received. <a target='_blank' href='https://maps.google.com/?q=" +
+
+        lat + "," + lon + "'>View on Google Maps</a>";
+
+    },
+
+    () => {
+
+      document.getElementById("result").textContent =
+
+        "Location permission was denied or unavailable.";
+
+    }
+
+  );
+
+}
+
+</script>
+
+</body>
+
+</html>
