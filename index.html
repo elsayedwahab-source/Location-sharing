@@ -1,53 +1,732 @@
 
-CREATE TABLE IF NOT EXISTS public.location_submissions (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  city TEXT NOT NULL CHECK (
-    city IN (
-      'Cairo','Giza','Alexandria','Qalyubia',
-      'Sharqia','Gharbia','Dakahlia','Monufia',
-      'Beheira','Port Said','Ismailia','Suez',
-      'Fayoum','Beni Suef','Minya','Asyut',
-      'Sohag','Qena','Luxor','Aswan',
-      'Red Sea','South Sinai','North Sinai',
-      'Matrouh','New Valley','Kafr El Sheikh',
-      'Damietta'
-    )
-  ),
-  consent BOOLEAN NOT NULL CHECK (consent IS TRUE),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
+<section id="voluntary-location" style="max-width:960px;margin:35px auto;padding:25px;background:#fff;border:1px solid #d7e0e9;border-radius:14px;color:#102d4c;font-family:Arial,sans-serif">
+  <h2>Share Your Delivery Area</h2>
+  <p>
+    This is a university project prototype, not a live courier service.
+    Sharing is optional. If you agree, your selected city and submission
+    time will be saved and visible to the project administrator.
+    No GPS coordinates or names are collected.
+  </p>
 
-ALTER TABLE public.location_submissions
-ENABLE ROW LEVEL SECURITY;
+  <label for="share-city">City / Governorate</label>
+  <select id="share-city" style="display:block;width:100%;padding:12px;margin:12px 0;border:1px solid #9ba9b7;border-radius:8px">
+    <option value="">Choose a location</option>
+    <option>Cairo</option>
+    <option>Giza</option>
+    <option>Alexandria</option>
+    <option>Qalyubia</option>
+    <option>Sharqia</option>
+    <option>Gharbia</option>
+    <option>Dakahlia</option>
+    <option>Monufia</option>
+    <option>Beheira</option>
+    <option>Port Said</option>
+    <option>Ismailia</option>
+    <option>Suez</option>
+    <option>Fayoum</option>
+    <option>Beni Suef</option>
+    <option>Minya</option>
+    <option>Asyut</option>
+    <option>Sohag</option>
+    <option>Qena</option>
+    <option>Luxor</option>
+    <option>Aswan</option>
+    <option>Red Sea</option>
+    <option>South Sinai</option>
+    <option>North Sinai</option>
+    <option>Matrouh</option>
+    <option>New Valley</option>
+    <option>Kafr El Sheikh</option>
+    <option>Damietta</option>
+  </select>
 
-REVOKE ALL ON public.location_submissions
-FROM anon, authenticated;
+  <label style="display:flex;gap:10px;align-items:flex-start">
+    <input type="checkbox" id="share-consent">
+    I agree to share my selected city and submission time
+    with the project administrator.
+  </label>
 
-GRANT INSERT (city, consent)
-ON public.location_submissions
-TO anon, authenticated;
+  <button id="share-location-btn" type="button" style="margin-top:15px;padding:13px 20px;border:0;border-radius:8px;background:#102d4c;color:white;cursor:pointer">
+    Share Selected City
+  </button>
 
-GRANT SELECT
-ON public.location_submissions
-TO authenticated;
+  <p id="share-result" role="status"></p>
+</section>
 
-DROP POLICY IF EXISTS "visitor explicit submission"
-ON public.location_submissions;
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
 
-CREATE POLICY "visitor explicit submission"
-ON public.location_submissions
-FOR INSERT
-TO anon, authenticated
-WITH CHECK (consent = TRUE);
+const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const button = document.getElementById('share-location-btn');
 
-DROP POLICY IF EXISTS "allowlisted admin read"
-ON public.location_submissions;
+button.addEventListener('click', async () => {
+  const city = document.getElementById('share-city').value;
+  const consent = document.getElementById('share-consent').checked;
+  const result = document.getElementById('share-result');
 
-CREATE POLICY "allowlisted admin read"
-ON public.location_submissions
-FOR SELECT
-TO authenticated
-USING (
-  (SELECT auth.jwt() ->> 'email') =
-  'REPLACE_WITH_YOUR_ADMIN_EMAIL@example.com'
-);
+  if (!city || !consent) {
+    result.textContent = 'Choose a city and check the consent box first.';
+    return;
+  }
+
+  button.disabled = true;
+
+  const { error } = await client
+    .from('location_submissions')
+    .insert({ city, consent: true });
+
+  result.textContent = error
+    ? 'Submission failed. Check your configuration.'
+    : 'Your selected city was shared successfully.';
+
+  button.disabled = false;
+
+  if (!error) {
+    document.getElementById('share-consent').checked = false;
+  }
+});
+</script>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#102d4c">
+<title>Masr Express | Shipment Tracking</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Sans+Arabic:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy: #102d4c;
+  --deep: #091b30;
+  --gold: #dbb66b;
+  --bg: #f3f6fa;
+  --muted: #69798d;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--navy);
+  font-family: Inter, Arial, sans-serif;
+}
+[dir="rtl"] body {
+  font-family: 'IBM Plex Sans Arabic', sans-serif;
+}
+a { color: inherit; text-decoration: none; }
+button, input, textarea { font: inherit; }
+button { cursor: pointer; }
+.container { width: min(1120px, 92%); margin: auto; }
+.top {
+  background: var(--deep);
+  color: #c0ccda;
+  padding: 11px 0;
+  font-size: 12px;
+}
+header {
+  background: var(--navy);
+  color: white;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  min-height: 84px;
+}
+.logo {
+  font-size: 23px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+.logo span { color: var(--gold); }
+.logo small {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 3px;
+  margin-top: 4px;
+  color: #b8c8d9;
+}
+nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  font-size: 13px;
+  font-weight: 700;
+}
+nav a:hover { color: var(--gold); }
+.controls { display: flex; gap: 8px; }
+.outline {
+  border: 1px solid #8ba0b6;
+  background: transparent;
+  color: inherit;
+  padding: 10px 14px;
+  border-radius: 8px;
+}
+.gold {
+  background: var(--gold);
+  color: var(--deep);
+  border: 0;
+  border-radius: 9px;
+  padding: 13px 20px;
+  font-weight: 800;
+  display: inline-block;
+}
+.btn {
+  background: var(--navy);
+  color: white;
+  border: 0;
+  border-radius: 8px;
+  padding: 14px 20px;
+  font-weight: 700;
+}
+.hero {
+  background: linear-gradient(120deg,#102d4c,#204a6c);
+  color: white;
+  padding: 80px 0 115px;
+}
+.eyebrow {
+  color: var(--gold);
+  font-size: 12px;
+  letter-spacing: 3px;
+  font-weight: 800;
+}
+.hero h1 {
+  font-size: clamp(38px,6vw,65px);
+  max-width: 750px;
+  line-height: 1.12;
+  margin: 20px 0;
+}
+.hero p {
+  font-size: 18px;
+  line-height: 1.7;
+  color: #d1dce9;
+  max-width: 630px;
+}
+.ship-banner {
+  margin-top: 34px;
+  padding: 24px;
+  background: #07182a65;
+  border: 1px solid #ffffff45;
+  border-radius: 15px;
+  max-width: 800px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+.ship-banner strong {
+  display: block;
+  margin: 10px 0;
+  font-size: 23px;
+}
+.ship-banner a { color: var(--gold); font-weight: 700; }
+.first { margin-top: -55px; position: relative; }
+.card {
+  background: white;
+  padding: 30px;
+  border: 1px solid #e3eaf1;
+  border-radius: 15px;
+  box-shadow: 0 8px 30px #102d4c0c;
+  margin-bottom: 20px;
+}
+h2 { font-size: clamp(26px,4vw,37px); }
+.sub { color: var(--muted); line-height: 1.7; }
+.status {
+  display: inline-block;
+  background: #e6f5ec;
+  color: #286e48;
+  border-radius: 7px;
+  padding: 9px 14px;
+  font-weight: 700;
+  font-size: 12px;
+}
+.trackform {
+  display: flex;
+  gap: 10px;
+  margin: 25px 0;
+}
+.trackform input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid #cfdae6;
+  padding: 15px;
+  border-radius: 9px;
+}
+.timeline {
+  border-inline-start: 2px solid #dfe7ef;
+  padding-inline-start: 27px;
+  margin: 25px 0 0 8px;
+}
+.event {
+  position: relative;
+  margin-bottom: 26px;
+}
+.event:before {
+  content: "";
+  position: absolute;
+  inset-inline-start: -34px;
+  top: 3px;
+  background: var(--gold);
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid white;
+  box-shadow: 0 0 0 1px var(--gold);
+}
+.event.pending:before { background: #cbd5df; }
+.event p { color: var(--muted); font-size: 13px; }
+section.content { padding: 65px 0; }
+.band { background: #e8eef5; }
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3,1fr);
+  gap: 19px;
+}
+.tile {
+  background: white;
+  border: 1px solid #e4eaf1;
+  border-radius: 15px;
+  padding: 28px;
+}
+.tile .icon { font-size: 30px; }
+.tile p { color: var(--muted); line-height: 1.65; }
+.two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 25px;
+}
+.field { margin: 15px 0; }
+.field label { display: block; font-weight: 700; margin-bottom: 8px; }
+.field input, .field textarea {
+  width: 100%;
+  border: 1px solid #d5deea;
+  border-radius: 9px;
+  padding: 13px;
+}
+.field textarea { min-height: 110px; }
+.notice {
+  background: #fff7e8;
+  border: 1px solid #eedbb9;
+  padding: 15px;
+  border-radius: 9px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+details {
+  padding: 18px 0;
+  border-bottom: 1px solid #d6e0eb;
+}
+summary { cursor: pointer; font-weight: 700; }
+footer {
+  background: var(--deep);
+  color: #c5cfdd;
+  padding: 42px 0;
+}
+footer a { margin-inline-end: 20px; }
+.modal-bg {
+  position: fixed;
+  inset: 0;
+  background: #06192abc;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+.modal-bg[hidden], [hidden] { display: none !important; }
+.modal {
+  width: min(460px,100%);
+  background: white;
+  color: var(--navy);
+  padding: 30px;
+  border-radius: 18px;
+}
+.modal p { color: var(--muted); line-height: 1.7; }
+.actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 23px;
+}
+.menu { display: none; }
+@media(max-width:800px) {
+  .bar { padding: 16px 0; }
+  .menu { display: inline-block; }
+  nav { display: none; width: 100%; order: 3; }
+  nav.open { display: flex; }
+  .grid,.two { grid-template-columns: 1fr; }
+  .hero { padding: 65px 0 110px; }
+  .card { padding: 22px; }
+}
+@media(max-width:460px) {
+  .trackform { flex-direction: column; }
+  .logo { font-size: 19px; }
+}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <div class="container">
+    MASR EXPRESS · LOGISTICS SERVICES
+  </div>
+</div>
+
+<header>
+  <div class="container bar">
+    <a href="#home" class="logo">
+      MASR <span>EXPRESS</span>
+      <small>LOGISTICS</small>
+    </a>
+    <button class="outline menu" onclick="toggleMenu()">☰</button>
+    <nav id="nav">
+      <a href="#home">HOME</a>
+      <a href="#track">TRACK</a>
+      <a href="#services">SERVICES</a>
+      <a href="#coverage">COVERAGE</a>
+      <a href="#about">ABOUT</a>
+      <a href="#contact">CONTACT</a>
+    </nav>
+    <div class="controls">
+      <button class="outline" onclick="toggleLanguage()" id="lang">العربية</button>
+      <button class="gold" onclick="openSignIn()">Sign in</button>
+    </div>
+  </div>
+</header>
+
+<section class="hero" id="home">
+  <div class="container">
+    <div class="eyebrow">SHIPMENT & LOGISTICS SERVICES</div>
+    <h1 id="heroTitle">Delivering Across Egypt.</h1>
+    <p id="heroText">
+      Follow your shipment journey, explore shipping services,
+      and access delivery information in one place.
+    </p>
+    <a href="#track" class="gold" id="heroButton">TRACK YOUR SHIPMENT →</a>
+
+    <div class="ship-banner">
+      <div>
+        <span class="eyebrow">SHIPMENT OVERVIEW</span>
+        <strong>📦 MX-2026-084291</strong>
+        <span id="shipStage">Current stage: In Transit</span>
+      </div>
+      <a href="#track">View progress ↗</a>
+    </div>
+  </div>
+</section>
+
+<main>
+  <div class="container first" id="track">
+    <div class="card">
+      <span class="eyebrow" style="color:#a47b35">TRACKING INFORMATION</span>
+      <h2 id="trackTitle">Shipment Progress</h2>
+      <span class="status" id="status">In Transit</span>
+      <p class="sub" style="font-size:12px">Illustrative shipment record</p>
+
+      <form class="trackform" onsubmit="track(event)">
+        <input id="ref" value="MX-2026-084291" aria-label="Tracking reference" required>
+        <button class="btn" id="trackButton">Track Shipment</button>
+      </form>
+      <p id="trackMessage" class="sub" role="status"></p>
+
+      <div id="timeline">
+        <h3>MX-2026-084291</h3>
+        <div class="timeline">
+          <div class="event">
+            <b id="event1">Shipment Registered</b>
+            <p>Shipment information received</p>
+          </div>
+          <div class="event">
+            <b id="event2">Processing Centre</b>
+            <p>Shipment processed</p>
+          </div>
+          <div class="event">
+            <b id="event3">In Transit</b>
+            <p>Shipment moving through the delivery journey</p>
+          </div>
+          <div class="event pending">
+            <b id="event4">Delivery Pending</b>
+            <p>Awaiting delivery confirmation</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="accountView" hidden>
+      <h2 id="greeting">My Account</h2>
+      <p class="sub">Your account view is local to this device.</p>
+      <button class="btn" onclick="signOut()">Sign out</button>
+    </div>
+  </div>
+
+  <section class="content" id="services">
+    <div class="container">
+      <h2 id="servicesTitle">Our Services</h2>
+      <p class="sub">Explore shipping information and delivery solutions.</p>
+
+      <div class="grid">
+        <div class="tile">
+          <div class="icon">🚚</div>
+          <h3>Domestic Delivery</h3>
+          <p>Shipment tracking and delivery stages across Egyptian cities.</p>
+          <a href="#track">Explore tracking →</a>
+        </div>
+        <div class="tile">
+          <div class="icon">🏢</div>
+          <h3>Business Shipping</h3>
+          <p>Organize shipment references and customer delivery inquiries.</p>
+          <a href="#contact">Contact →</a>
+        </div>
+        <div class="tile">
+          <div class="icon">📍</div>
+          <h3>Location Assistance</h3>
+          <p>View your current location after granting browser permission.</p>
+          <button class="btn" onclick="showLocation()">Use my location</button>
+          <p id="coordinates" class="sub" role="status"></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="content band" id="coverage">
+    <div class="container">
+      <h2>Coverage Across Egypt</h2>
+      <p class="sub">Explore common shipping destinations.</p>
+      <div class="grid">
+        <div class="tile"><h3>Cairo & Giza</h3><p>Greater Cairo region</p></div>
+        <div class="tile"><h3>Alexandria</h3><p>Mediterranean coast</p></div>
+        <div class="tile"><h3>Other Governorates</h3><p>Intercity shipping information</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="content" id="about">
+    <div class="container two">
+      <div>
+        <h2>About Masr Express</h2>
+        <p class="sub">
+          Masr Express presents a modern logistics interface
+          focused on accessible shipment information, clear
+          delivery milestones and mobile-friendly navigation.
+        </p>
+      </div>
+      <div class="card">
+        <h3>Location Preferences</h3>
+        <p class="sub">
+          Location sharing is optional. Your browser controls
+          permission and your coordinates remain on this device.
+        </p>
+        <button class="btn" onclick="showLocation()">Location Settings</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="content band" id="faq">
+    <div class="container">
+      <h2>Frequently Asked Questions</h2>
+      <details>
+        <summary>How can I track a shipment?</summary>
+        <p class="sub">Use the tracking reference shown above.</p>
+      </details>
+      <details>
+        <summary>How do location permissions work?</summary>
+        <p class="sub">Your browser asks before granting GPS access.</p>
+      </details>
+      <details>
+        <summary>Can I arrange a shipment here?</summary>
+        <p class="sub">Shipment bookings and payments are not connected to this interface.</p>
+      </details>
+    </div>
+  </section>
+
+  <section class="content" id="contact">
+    <div class="container two">
+      <div>
+        <h2>Contact Us</h2>
+        <p class="sub">Prepare a shipment inquiry using the form.</p>
+        <p class="notice">
+          This form prepares messages locally and does not send them.
+          Please avoid entering sensitive personal information.
+        </p>
+      </div>
+      <div class="card">
+        <form onsubmit="contactSubmit(event)">
+          <div class="field">
+            <label for="name">Name</label>
+            <input id="name" required>
+          </div>
+          <div class="field">
+            <label for="email">Email</label>
+            <input id="email" type="email" required>
+          </div>
+          <div class="field">
+            <label for="message">Message</label>
+            <textarea id="message" required></textarea>
+          </div>
+          <button class="btn">Prepare Inquiry</button>
+          <p id="contactResult" class="sub" role="status"></p>
+        </form>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="container">
+    <h3>MASR EXPRESS</h3>
+    <p>Shipment Tracking · Logistics Services</p>
+    <a href="#home">Home</a>
+    <a href="#track">Track</a>
+    <a href="#services">Services</a>
+    <a href="#contact">Contact</a>
+    <p style="font-size:12px;margin-top:28px">
+      © 2026 Masr Express · University website concept · Illustrative shipment data
+    </p>
+  </div>
+</footer>
+
+<div class="modal-bg" id="locationModal" hidden role="dialog" aria-modal="true" aria-labelledby="locationTitle">
+  <div class="modal">
+    <div style="font-size:38px">📍</div>
+    <h2 id="locationTitle">Use your location?</h2>
+    <p>
+      Masr Express can display your GPS coordinates for
+      location-based shipping information. Your location
+      will remain in this browser and won't be uploaded.
+    </p>
+    <div class="actions">
+      <button class="btn" onclick="getLocation()">Allow location</button>
+      <button class="outline" style="color:#102d4c" onclick="closeLocation()">Not now</button>
+    </div>
+    <p id="locationStatus" role="status"></p>
+  </div>
+</div>
+
+<div class="modal-bg" id="signInModal" hidden role="dialog" aria-modal="true" aria-labelledby="signinTitle">
+  <div class="modal">
+    <h2 id="signinTitle">Account Access</h2>
+    <p>Enter a display name to create a local account view. No password is collected.</p>
+    <form onsubmit="signIn(event)">
+      <div class="field">
+        <label for="username">Display Name</label>
+        <input id="username" autocomplete="nickname" maxlength="35" required>
+      </div>
+      <div class="actions">
+        <button class="btn">Continue</button>
+        <button type="button" class="outline" style="color:#102d4c"
+          onclick="document.getElementById('signInModal').hidden=true">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function toggleMenu() {
+  document.getElementById("nav").classList.toggle("open");
+}
+
+function track(e) {
+  e.preventDefault();
+  const reference = document.getElementById("ref").value.trim().toUpperCase();
+  const found = reference === "MX-2026-084291";
+  document.getElementById("timeline").hidden = !found;
+  document.getElementById("trackMessage").textContent =
+    found ? "Shipment information displayed below." : "No matching shipment record is available.";
+}
+
+function showLocation() {
+  document.getElementById("locationModal").hidden = false;
+}
+function closeLocation() {
+  document.getElementById("locationModal").hidden = true;
+}
+function getLocation() {
+  const status = document.getElementById("locationStatus");
+  if (!navigator.geolocation) {
+    status.textContent = "Geolocation is not supported.";
+    return;
+  }
+  status.textContent = "Requesting permission...";
+  navigator.geolocation.getCurrentPosition(
+    function(position) {
+      const lat = position.coords.latitude.toFixed(5);
+      const lon = position.coords.longitude.toFixed(5);
+      document.getElementById("coordinates").textContent =
+        "Coordinates: " + lat + ", " + lon;
+      status.textContent = "Location displayed locally.";
+      closeLocation();
+    },
+    function() {
+      status.textContent = "Location permission denied or unavailable.";
+    },
+    { enableHighAccuracy: false, timeout: 10000 }
+  );
+}
+
+function openSignIn() {
+  document.getElementById("signInModal").hidden = false;
+}
+function signIn(e) {
+  e.preventDefault();
+  const name = document.getElementById("username").value.trim();
+  if (!name) return;
+  document.getElementById("greeting").textContent = "Welcome, " + name;
+  document.getElementById("accountView").hidden = false;
+  document.getElementById("signInModal").hidden = true;
+  document.getElementById("accountView").scrollIntoView();
+}
+function signOut() {
+  document.getElementById("accountView").hidden = true;
+  document.getElementById("username").value = "";
+}
+function contactSubmit(e) {
+  e.preventDefault();
+  document.getElementById("contactResult").textContent =
+    "Inquiry prepared locally. No message was sent.";
+}
+
+let arabic = false;
+function toggleLanguage() {
+  arabic = !arabic;
+  document.documentElement.lang = arabic ? "ar" : "en";
+  document.documentElement.dir = arabic ? "rtl" : "ltr";
+  const translations = {
+    heroTitle: ["Delivering Across Egypt.", "التوصيل في جميع أنحاء مصر"],
+    heroText: [
+      "Follow your shipment journey, explore shipping services, and access delivery information in one place.",
+      "تابع شحنتك واستكشف خدمات الشحن ومعلومات التوصيل في مكان واحد."
+    ],
+    heroButton: ["TRACK YOUR SHIPMENT →", "تتبع شحنتك ←"],
+    shipStage: ["Current stage: In Transit", "الحالة الحالية: في الطريق"],
+    trackTitle: ["Shipment Progress", "مراحل الشحنة"],
+    trackButton: ["Track Shipment", "تتبع الشحنة"],
+    servicesTitle: ["Our Services", "خدماتنا"],
+    event1: ["Shipment Registered", "تم تسجيل الشحنة"],
+    event2: ["Processing Centre", "مركز المعالجة"],
+    event3: ["In Transit", "قيد النقل"],
+    event4: ["Delivery Pending", "بانتظار التوصيل"],
+    status: ["In Transit", "في الطريق"]
+  };
+  for (const id in translations) {
+    document.getElementById(id).textContent =
+      translations[id][arabic ? 1 : 0];
+  }
+  document.getElementById("lang").textContent =
+    arabic ? "English" : "العربية";
+}
+
+window.addEventListener("DOMContentLoaded", function() {
+  showLocation();
+});
+</script>
+</body>
+</html>
+
+
